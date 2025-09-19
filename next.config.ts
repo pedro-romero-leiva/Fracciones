@@ -1,8 +1,9 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
   output: 'export',
+  basePath: '/Fracciones',  // ← Agregar esta línea
+  assetPrefix: '/Fracciones',  // ← Agregar esta línea también
   typescript: {
     ignoreBuildErrors: true,
   },
