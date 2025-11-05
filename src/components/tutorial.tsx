@@ -233,7 +233,7 @@ export function Tutorial() {
       }
   }
 
-  const selectors = Array.isArray(stepConfig.spotlightSelector) ? stepConfig.spotlightSelector : [stepConfig.spotlightSelector];
+  const selectors = (Array.isArray(stepConfig.spotlightSelector) ? stepConfig.spotlightSelector : [stepConfig.spotlightSelector]).filter((s): s is string | null => s !== undefined);
 
   return (
     <AnimatePresence>
