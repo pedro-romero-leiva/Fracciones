@@ -276,6 +276,7 @@ export function Workspace({
     const group = circleGroups.find(g => g.id === groupId);
     const circle = group?.circles.find(c => c.id === circleId);
     if (!circle) return;
+    if (!group) return;
 
     if (mode === 'select') {
       const newSlices = [...circle.slices];
