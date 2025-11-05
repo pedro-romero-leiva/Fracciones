@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -22,6 +21,7 @@ import {
   FormItem,
   FormMessage,
 } from '@/components/ui/form';
+import type { CircleState, CircleGroup } from '@/lib/types';
 
 const AmplifySchema = z.object({
   factor: z.coerce
@@ -36,10 +36,11 @@ type AmplifyFormValues = z.infer<typeof AmplifySchema>;
 interface AmplifyDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAmplify: (factor: number) => void;
+  amplifyingGroup: CircleGroup | null;
+  setCircleGroups: React.Dispatch<React.SetStateAction<CircleGroup[]>>;
 }
 
-export function AmplifyDialog({ isOpen, onClose, onAmplify }: AmplifyDialogProps) {
+export function AmplifyDialog({ isOpen, onClose, amplifyingGroup, setCircleGroups }: AmplifyDialogProps) {
   const form = useForm<AmplifyFormValues>({
     resolver: zodResolver(AmplifySchema),
     defaultValues: {
@@ -47,10 +48,47 @@ export function AmplifyDialog({ isOpen, onClose, onAmplify }: AmplifyDialogProps
     },
   });
 
-  const onSubmit: SubmitHandler<AmplifyFormValues> = (data) => {
-    onAmplify(data.factor);
+  const handleAmplify: SubmitHandler<AmplifyFormValues> = (data) => {
+    if (!amplifyingGroup) return;
+
+    const factor = data.factor;
+    const originalDivisions = amplifyingGroup.circles[0].divisions;
+    const newDivisions = originalDivisions * factor;
+
+    const originalActiveCount = amplifyingGroup.circles.reduce((acc, c) => acc + c.slices.filter(s => s.active).length, 0);
+    const newActiveCount = originalActiveCount * factor;
+
+    const newCircles: CircleState[] = [];
+    let remainingActiveSlices = newActiveCount;
+
+    const numNewCircles = Math.ceil(newActiveCount / newDivisions);
+    const numToCreate = Math.max(1, numNewCircles); 
+
+    for (let i = 0; i < numToCreate; i++) {
+        const slicesForThisCircle = Math.min(remainingActiveSlices, newDivisions);
+        const newSlices = Array.from({ length: newDivisions }, (_, j) => ({
+            id: `slice-amp-${Date.now()}-${i}-${j}`,
+            active: j < slicesForThisCircle,
+        }));
+        newCircles.push({
+            id: `circle-amp-${Date.now()}-${i}`,
+            divisions: newDivisions,
+            slices: newSlices
+        });
+        remainingActiveSlices -= slicesForThisCircle;
+    }
+    
+    const newGroup: CircleGroup = {
+      id: amplifyingGroup.id,
+      circles: newCircles,
+      duplicateCount: 1, // Reset duplicate count after amplification
+    }
+
+    setCircleGroups(prev => prev.map(g => (g.id === amplifyingGroup.id ? newGroup : g)));
+    onClose();
     form.reset();
   };
+
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -63,11 +101,11 @@ export function AmplifyDialog({ isOpen, onClose, onAmplify }: AmplifyDialogProps
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(handleAmplify)}>
             <DialogHeader>
               <DialogTitle>Amplificar Fracción</DialogTitle>
               <DialogDescription>
-                Introduce el número por el cual quieres multiplicar el numerador y el denominador.
+                Introduce el número por el cual quieres multiplicar el numerador y el denominador para crear una fracción equivalente.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

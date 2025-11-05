@@ -2,32 +2,18 @@
 'use client';
 
 import { useMemo, type MouseEvent } from 'react';
-import { Button } from '@/components/ui/button';
-import { Minus, Plus, Copy } from 'lucide-react';
-import { type Mode } from '@/app/page';
+import { useTheme } from 'next-themes';
+import { type Mode, type CircleState } from '@/lib/types';
 import { cn } from '@/lib/utils';
-
-export interface SliceState {
-  id: string;
-  active: boolean;
-}
-
-export interface CircleState {
-  id: string;
-  divisions: number;
-  slices: SliceState[];
-}
+import { MotionDiv } from './motion-div';
 
 interface FractionCircleProps {
   circleState: CircleState;
   mode: Mode;
-  onUpdate: (circleId: string, newProps: Partial<CircleState>) => void;
-  onRemove: (id:string) => void;
-  onDuplicate: () => void;
-  onPickSlice: (sliceIndex: number, divisions: number) => void;
-  onPlaceSlice: () => void;
+  onSliceClick: (circleId: string, sliceIndex: number) => void;
+  onContainerClick: (circleId: string) => void;
   isPicked: boolean;
-  isGrouped?: boolean;
+  isDropTarget: boolean;
 }
 
 const getSlicePath = (divisions: number, index: number, radius: number, centerX: number, centerY: number): string => {
@@ -45,123 +31,105 @@ const getSlicePath = (divisions: number, index: number, radius: number, centerX:
   return `M ${centerX},${centerY} L ${startX},${startY} A ${radius},${radius} 0 ${largeArcFlag} 1 ${endX},${endY} Z`;
 };
 
+const lightSliceColors = [
+    'hsl(175, 70%, 45%)', // Teal
+    'hsl(220, 80%, 60%)', // Indigo
+    'hsl(340, 85%, 60%)', // Rose
+    'hsl(40, 90%, 55%)',  // Amber
+    'hsl(200, 85%, 55%)', // Light Blue
+    'hsl(310, 70%, 55%)', // Pink
+    'hsl(140, 60%, 45%)', // Green
+    'hsl(260, 75%, 65%)', // Purple
+];
+
+const darkSliceColors = [
+    'hsl(175, 65%, 40%)',
+    'hsl(220, 70%, 55%)',
+    'hsl(340, 75%, 55%)',
+    'hsl(40, 80%, 50%)',
+    'hsl(200, 75%, 50%)',
+    'hsl(310, 60%, 50%)',
+    'hsl(140, 55%, 40%)',
+    'hsl(260, 65%, 60%)',
+];
+
 
 export function FractionCircle({
   circleState,
   mode,
-  onUpdate,
-  onRemove,
-  onDuplicate,
-  onPickSlice,
-  onPlaceSlice,
+  onSliceClick,
+  onContainerClick,
   isPicked,
-  isGrouped = false,
+  isDropTarget,
 }: FractionCircleProps) {
+  const { theme } = useTheme();
   const { id, divisions, slices = [] } = circleState;
   const size = '100%';
   const viewBoxSize = 250;
   const radius = viewBoxSize / 2.6;
   const center = viewBoxSize / 2;
 
-  const handleSliceClick = (e: MouseEvent, index: number) => {
+  const sliceColors = useMemo(() => (theme === 'dark' ? darkSliceColors : lightSliceColors), [theme]);
+
+  const handleSliceClickEvent = (e: MouseEvent, index: number) => {
     e.stopPropagation();
-    if (mode === 'select') {
-      const newSlices = [...slices];
-      newSlices[index] = { ...newSlices[index], active: !newSlices[index].active };
-      onUpdate(id, { slices: newSlices });
-    } else if (mode === 'drag') {
-      onPickSlice(index, divisions);
-    }
+    onSliceClick(id, index);
   };
   
-  const handleContainerClick = (e: MouseEvent<HTMLDivElement>) => {
+  const handleContainerClickEvent = (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    if (mode === 'erase') {
-        onRemove(id);
-    } else if (mode === 'drag') {
-        onPlaceSlice();
-    }
-  };
-
-  const handleDivide = (e: MouseEvent) => {
-    e.stopPropagation();
-    const newDivisions = divisions + 1;
-    onUpdate(id, { divisions: newDivisions, slices: Array.from({length: newDivisions}, (_,i) => ({id: `slice-${id}-${i}`, active: true})) });
-  };
-
-  const handleSubtract = (e: MouseEvent) => {
-    e.stopPropagation();
-    if (divisions > 1) {
-      const newDivisions = divisions - 1;
-      onUpdate(id, { divisions: newDivisions, slices: Array.from({length: newDivisions}, (_,i) => ({id: `slice-${id}-${i}`, active: true})) });
-    }
-  };
-
-  const handleDuplicate = (e: MouseEvent) => {
-    e.stopPropagation();
-    onDuplicate();
+    onContainerClick(id);
   };
 
   const activeCount = useMemo(() => slices.filter(s => s.active).length, [slices]);
 
   return (
-    <div 
-        className={cn('relative w-full flex flex-col aspect-square max-w-xs transition-all duration-300 fraction-circle-container',
-            !isGrouped && 'shadow-lg hover:shadow-xl bg-card rounded-lg border',
-            mode === 'erase' && 'cursor-pointer ring-2 ring-offset-2 ring-destructive',
-            mode === 'drag' && 'cursor-pointer',
-            isGrouped && 'max-w-[200px]'
+    <MotionDiv 
+        className={cn(
+          'relative w-full flex flex-col items-center aspect-square max-w-[170px] fraction-circle-container',
+          isDropTarget && 'outline-4 outline-dashed outline-green-500 outline-offset-8 animate-pulse'
         )}
-        onClick={handleContainerClick}
+        onClick={handleContainerClickEvent}
+        layout
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
-      {!isGrouped && activeCount > 0 && divisions !== activeCount && (
-          <div className="absolute top-2 right-2 p-1 bg-card/70 rounded-md pointer-events-none">
-              <div className="flex flex-col items-center font-bold text-foreground text-lg">
-                  <span>{activeCount}</span>
-                  <div className="w-full h-px bg-foreground my-0.5"></div>
-                  <span>{divisions}</span>
-              </div>
-          </div>
-      )}
-      <div className="flex justify-center items-center p-2 flex-1">
+      <div className="flex justify-center items-center p-2 flex-1 relative group">
           <svg
             width={size}
             height={size}
             viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
+            className="drop-shadow-sm transition-transform group-hover:scale-105"
           >
+            <circle cx={center} cy={center} r={radius} fill="transparent" stroke="hsl(var(--circle-border))" strokeWidth="3" />
             {slices.map((slice, i) => (
               <path
                 key={slice.id}
                 d={getSlicePath(divisions, i, radius, center, center)}
-                fill={slice.active ? `hsl(${((i * 360) / divisions)}, 65%, 60%)` : 'hsl(220 13% 91%)'}
-                stroke="hsl(var(--card))"
-                strokeWidth="2"
-                onClick={(e) => handleSliceClick(e, i)}
-                className={cn('transition-all duration-200',
+                fill={slice.active ? sliceColors[i % sliceColors.length] : 'hsl(var(--muted))'}
+                stroke="hsl(var(--division-line))"
+                strokeWidth={divisions > 1 ? 2 : 0}
+                onClick={(e) => handleSliceClickEvent(e, i)}
+                className={cn(
                   mode === 'select' && 'cursor-pointer hover:opacity-80',
-                  mode === 'drag' && slice.active && 'cursor-pointer hover:opacity-80',
+                  mode === 'drag' && slice.active && 'cursor-grab hover:opacity-80',
                   mode === 'drag' && !slice.active && 'cursor-not-allowed',
-                  mode === 'amplify' && 'cursor-default',
-                  isPicked && 'opacity-50'
+                  (mode === 'amplify' || mode === 'divide' || mode === 'duplicate') && 'cursor-default',
+                  isPicked && 'opacity-30'
                 )}
               />
             ))}
           </svg>
       </div>
-      {!isGrouped && <div className="flex justify-center gap-2 p-4 pt-0">
-        <Button variant="outline" size="icon" onClick={handleSubtract} disabled={divisions <= 1}>
-          <Minus className="h-4 w-4" />
-          <span className="sr-only">Quitar división</span>
-        </Button>
-        <Button variant="outline" size="icon" onClick={handleDivide}>
-          <Plus className="h-4 w-4" />
-          <span className="sr-only">Añadir división</span>
-        </Button>
-        <Button variant="outline" size="icon" onClick={handleDuplicate}>
-          <Copy className="h-4 w-4" />
-          <span className="sr-only">Duplicar círculo</span>
-        </Button>
-      </div>}
-    </div>
+       {activeCount > 0 && divisions > 0 && (
+         <div className="text-center font-bold text-lg text-foreground/80">
+          <span>{activeCount}</span>
+          <span className="mx-1">/</span>
+          <span>{divisions}</span>
+        </div>
+      )}
+    </MotionDiv>
   );
 }
