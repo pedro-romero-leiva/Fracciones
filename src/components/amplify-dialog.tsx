@@ -81,7 +81,6 @@ export function AmplifyDialog({ isOpen, onClose, amplifyingGroup, setCircleGroup
     const newGroup: CircleGroup = {
       id: amplifyingGroup.id,
       circles: newCircles,
-      duplicateCount: 1, // Reset duplicate count after amplification
     }
 
     setCircleGroups(prev => prev.map(g => (g.id === amplifyingGroup.id ? newGroup : g)));
