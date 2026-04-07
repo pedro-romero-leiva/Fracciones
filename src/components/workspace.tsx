@@ -309,7 +309,7 @@ export function Workspace({
   const handleDivide = (groupId: string, amount: number) => {
     updateGroup(groupId, g => {
         const currentDivisions = g.circles[0].divisions;
-        const newDivisions = Math.max(1, Math.min(12, currentDivisions + amount));
+        const newDivisions = Math.max(1, Math.min(50, currentDivisions + amount));
         
         const currentActive = g.circles.reduce((sum, c) => sum + c.slices.filter(s => s.active).length, 0);
         
@@ -430,7 +430,7 @@ export function Workspace({
                         <span className='font-medium text-sm text-foreground/80 shrink-0'>Dividir:</span>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDivide(group.id, -1)} disabled={group.circles[0].divisions <= 1}><Minus size={16} /></Button>
                         <span className='font-bold text-lg w-8 text-center'>{group.circles[0].divisions}</span>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDivide(group.id, 1)} disabled={group.circles[0].divisions >= 12}><Plus size={16} /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDivide(group.id, 1)} disabled={group.circles[0].divisions >= 50}><Plus size={16} /></Button>
                     </div>
                      <div className='flex items-center'>
                         <Button variant="ghost" size="sm" onClick={() => handleDuplicate(group.id)}>
